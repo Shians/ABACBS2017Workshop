@@ -133,7 +133,7 @@ sce <- detect_outlier(
 table(QC_metrics(sce)$outliers)
 ```
 
-We see that the automatic algorithm has identified 16 outliers. Below we inspect the difference between QC metrics between the cells labelled as outliers and the remaining cells. The emerald coloured values represent the outliers and the salmon coloured values represent the samples to be kept. It is important to inspect these plots as an overview of the automatic outlier detection. Across the the diagonal are density plots, on the upper triangle are correlation values and on the lower triangle are classic pairs plots. The right column shows boxplots of the QC metrics.
+We see that the automatic algorithm has identified 16 outliers. Below we inspect the difference between QC metrics between the cells labelled as outliers and the remaining cells. The emerald coloured values represent the outliers and the salmon coloured values represent the samples to be kept. It is important to inspect these plots as an overview of the automatic outlier detection. Across the the diagonal are density plots, on the upper triangle are correlation values and on the lower triangle are classic pairs plots. The right column shows box-plots of the QC metrics.
 
 ```{r, message=FALSE}
 # plot summary statistics of outlier detection
@@ -183,14 +183,14 @@ sce <- calculateQCMetrics(
 )
 ```
 
-It's often informative to check the most highly expressed genes, this can be easily compared with reference datasets and provide additonal diagnostic insight. Below we see high expression of genes related to red blood cells.
+It's often informative to check the most highly expressed genes, this can be easily compared with reference datasets and provide additional diagnostic insight. Below we see high expression of genes related to red blood cells.
 
 ```{r}
 # plot 20 highest expression genes
 plotQC(sce, type = "highest-expression", n = 20)
 ```
 
-We filter by the number of samples a gene can be detected in and the average counts of the gene within samples where it is expressed. Taking the average only within expressed samples is important as not to remove imformative genes that are well expressed only in a small population. Here we have set the thresholds
+We filter by the number of samples a gene can be detected in and the average counts of the gene within samples where it is expressed. Taking the average only within expressed samples is important as not to remove informative genes that are well expressed only in a small population. Here we have set the thresholds
 
 * Greater than 1 average count within expressed samples
 * Greater than 2 samples expressed in
@@ -268,7 +268,7 @@ The expression of ERCC spike-ins should be quite consistent across the samples, 
 
 ## Heatmap of most variable genes
 
-Heatmaps are useful ways to visualise patterns in gene expression across many samples. Genes are hierarchically clustered along the rows and samples clustered across the columns. Blocks of co-expressed genes and samples with similar expression can be identified and help infer the type of cells in the experiment.
+Heat-maps are useful ways to visualise patterns in gene expression across many samples. Genes are hierarchically clustered along the rows and samples clustered across the columns. Blocks of co-expressed genes and samples with similar expression can be identified and help infer the type of cells in the experiment.
 
 ```{r}
 # plot heatmap of most variable genes
@@ -311,7 +311,7 @@ plotPCA(
 
 # tSNE using highly variable genes
 
-t-Distributed Stochastic Neighbor Embedding (tSNE) plots are a very popular method for dimensionality reduction of single cell data. It is a dimensionality reduction technique that preserves neighbourhoods rather than distances. tSNE plots are able to fully reduce the high dimensional data into two dimensions, such that all significant differences are represented in the clustering of points. However tSNE plots are pseudo-random and also make use of a `perplexity` parameter. For reproducibility, `set.seed()` should always be run before tSNE to set the random seed. Multiple tSNE plots should also be generated over different perplexities in order to observe the stability of the clusters. Once again we run this using only our highly variable genes.
+t-Distributed Stochastic Neighbour Embedding (tSNE) plots are a very popular method for dimensionality reduction of single cell data. It is a dimensionality reduction technique that preserves neighbourhoods rather than distances. tSNE plots are able to fully reduce the high dimensional data into two dimensions, such that all significant differences are represented in the clustering of points. However tSNE plots are pseudo-random and also make use of a `perplexity` parameter. For reproducibility, `set.seed()` should always be run before tSNE to set the random seed. Multiple tSNE plots should also be generated over different perplexities in order to observe the stability of the clusters. Once again we run this using only our highly variable genes.
 
 ```{r, fig.height = 7, fig.width = 10}
 set.seed(100)
@@ -385,7 +385,7 @@ p2 <- plotTSNE(
 multiplot(p1, p2, cols = 1)
 ```
 
-We can see that the SC3 assigned clustering matches up with the known cell types. These asssigned cluster indices help with downstream differential expression analysis.
+We can see that the SC3 assigned clustering matches up with the known cell types. These assigned cluster indices help with downstream differential expression analysis.
 
 # Differential Expression
 
@@ -409,7 +409,7 @@ design_matrix <- model.matrix(~0 + sc3_5_clusters, data = dge$samples)
 head(design_matrix)
 ```
 
-In contrast to a standard `edgeR` pipeline we do not run `calcNormFactors` as we have already calculated size factors from `scran` which were transferred when running `convertTo`. The `scran` method for size factors is more robust to gene dropout.
+In contrast to a standard `edgeR` pipeline we do not run `calcNormFactors` as we have already calculated size factors from `scran` which were transferred when running `convertTo`. The `scran` method for size factors is more robust to gene drop-out.
 
 ```{r}
 # fit glm using edgeR
@@ -418,7 +418,7 @@ dge <- estimateDisp(dge, design = design_matrix, robust = TRUE)
 fit <- glmFit(dge, design = design_matrix)
 ```
 
-For the contrast we have a few choices, most commonly we could perform pairwise comparisons between our clusters, alternatively one could compare one cluster to the average of the remaining clusters. Here for demonstration purposes we simply compare clusters 4 and 5 of the `SC3` clusters. 
+For the contrast we have a few choices, most commonly we could perform pair-wise comparisons between our clusters, alternatively one could compare one cluster to the average of the remaining clusters. Here for demonstration purposes we simply compare clusters 4 and 5 of the `SC3` clusters. 
 
 ```{r}
 # compare cluster 5 vs cluster 4 with likelihood ratio test
@@ -440,6 +440,8 @@ top$table %>%
 ```
 
 With the `SingleCellExperiment` and `DGEList` objects a variety of other analyses can be performed.
+
+# Appendix
 
 ```{r}
 sessionInfo()
