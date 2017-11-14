@@ -1,0 +1,447 @@
+---
+title: "Single Cell Workflow"
+author: "Shian Su"
+date: "`r format(Sys.Date(), '%d %B %Y')`"
+output: 
+  html_document:
+    df_print: paged
+    fig_height: 7
+    fig_width: 7
+    toc: yes
+    toc_float:
+        collapsed: no
+        smooth_scroll: yes
+---
+
+```{r setup, include=FALSE}
+library(scPipe)
+library(scater)
+library(scran)
+library(SC3)
+library(edgeR)
+
+library(dplyr)
+library(magrittr)
+library(ggplot2)
+library(tibble)
+library(plotly)
+
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Preliminaries
+
+## Upstream analysis
+
+This workflow assumes that upstream processing of FASTQ files has been performed using scPipe. The result of the upstream processing should be a `gene_count.csv` file containing gene counts and a `stat` folder containing various experiment summary statistics. The data in this workflow is generated from 5 types of blood cells using the CEL-Seq2 protocol, this makes use of unique molecular identifiers (UMIs) on transcript fragments and known cellular barcodes for each cell.
+
+## dplyr and tibble
+
+`dplyr` and `tibble` are packages that provide powerful tools for handling dataframes. These packages are usually used along with the "pipe" operator `%>%` from `magrittr`, this facilitates successive applications of functions with a clean syntax. `x %>% f() %>% g()` is equivalent to `f(g(x))` and in the case of multiple functions the operator will insert into the first argument slot of the receiving function.
+
+One quirk of dplyr is that rownames are not well preserved, therefore we make use of the `rownames_to_column()` function to transfer the rownames into a named column. The functions we will use from dplyr are:
+
+* `select()`: selects columns
+* `filter()`: filters rows based on values from column(s)
+* `arrange()`: sorts rows based on column(s)
+* `slice()`: selects rows based on position
+* `group_by()` and `summarise()`: these are used together to create summary values, `group_by()` is used to specify the column for grouping and `summarise()` is used to specify the summary values to calculate
+
+# Introduction
+
+Single cell RNA sequencing (scRNA-seq) is a powerful technique that is used to investigate the gene expression profiles of individual cells. This is in contrast to classic bulk tissue RNA sequencing whereby the gene expression profiles represent the average profiles of a large number of cells. Single cell sequencing allows for higher resolution analysis, allowing for a range of new types of discoveries not possible with bulk sequencing. However certain characteristics make single cell sequencing data slightly more difficult to work with than bulk rna seq. There are usually large numbers of cells sequenced, which generally results in at least some degraded cells that should be excluded from analysis. In general the gene count numbers are low and in addition there are gene drop-outs whereby many genes have 0 counts. These have adverse effects on existing modelling techniques. We will use `scPipe` to visualise the quality of our experiment and remove low quality cells. We will then use `scater` and `scran` to visualise, filter and normalise gene counts. The results can then be plotted using `Rtsne` and clustered with `SC3` and differential expression analysis can be performed using `edgeR`.
+
+## Read in data
+
+We read in our data with `create_sce_by_dir()`, this will search the provided directory for the count matrix and `scPipe` statistics to generate a `SingleCellExperiments` object. The `SingleCellExperiments` object is the standard bioconductor object for storing single cell experiments. The main field accessors are `counts(sce)` for the raw count values, `colData(sce)` for the sample data and `rowData(sce)` for the gene data. After reading in the data we calculate additional QC metrics required by scPipe using `calculate_QC_metrics(sce)`.
+
+```{r}
+# read in data from working directory
+sce <- create_sce_by_dir(
+    ".",
+    organism = "mmusculus_gene_ensembl",
+    gene_id_type = "ensembl_gene_id"
+)
+
+# calculate additional quality control metrics
+sce <- calculate_QC_metrics(sce)
+
+# dimension of sce object (genes x samples)
+dim(sce)
+```
+
+We see that there are `r dim(sce)[1]` genes detected in `r dim(sce)[2]` cells in this experiment.
+
+We also need sample annotations to give context our cells.
+
+```{r}
+# read in sample annotations
+sample_anno <- read.csv("sample_anno.csv")
+dim(sample_anno)
+head(sample_anno)
+```
+
+## Barcode demultiplexing statistics
+
+It's useful to check the barcode de-multiplexing statistics to get an initial idea of the quality of the sample.
+
+```{r}
+# plot barcode demultiplexing statistics
+plot_demultiplex(sce)
+```
+
+Here we see that around 65% of the reads matched to a barcode. We also see that around 23% of samples could be aligned but did not have a barcode match. These values can help identify sequencing failures, contamination and other problems with the experiment.
+
+## Plot mapping statistics
+
+We check the mapping statistics to see the profiles of the individual cells in the experiment. In `scPipe` *aligned* refers to successful alignment to reference genome while *mapped* refers to successful mapping to an annotated feature. Therefore *aligned_unmapped* refers to reads that can be aligned to a position on the genome but the feature annotations do not specify a feature at the aligned position.
+
+```{r}
+plot_mapping(sce, percentage = TRUE, dataname = "sample data")
+```
+
+
+## Filter unannotated samples
+
+We filter out samples that do not have any annotation and remove annotation entries that do not match any detected cells.
+
+```{r}
+# keep only annotated samples by matching sample_ids
+annotated_samples <- colnames(sce) %in% sample_anno$cell_id
+sce <- sce[, annotated_samples]
+
+# keep only annotation for samples captured
+samples_captured <- sample_anno$cell_id %in% colnames(sce)
+sample_anno <- sample_anno[samples_captured, ]
+```
+
+## Outlier sample detection
+
+With the large number of cells sequenced, it is inevitable that some degraded cells are sequenced. In most situations these cells are not of primary interest and should be filtered out prior to further analysis. It is possible to manually set thresholds for QC metrics to exclude samples. scPipe offers a `detect_outlier()` function to automatically detect outliers based on QC metrics previously calculated with `calculate_QC_metrics()`. using the `type = "low"` option labels the outliers with low QC metrics for exclusion.
+
+In this experiment there are multiple cell types which may have different QC metric profiles. So to avoid losing an entire cell type to automatic filtering we can filter within batches but assigning the `colData(sce)$batch` values and setting `batch = TRUE` in detect_outlier. In this case we have prior knowledge of the cell types so we can use that as our batching group, otherwise some preliminary clustering can be done, for example using the `quickCluster()` function provided by `scran` can be used.
+
+```{r, message=FALSE, warning=FALSE}
+colData(sce)$batch <- factor(sample_anno$cell_type)
+# automatic outlier detection based on QC statistics
+sce <- detect_outlier(
+    sce,
+    type = "low",
+    batch = TRUE
+)
+
+table(QC_metrics(sce)$outliers)
+```
+
+We see that the automatic algorithm has identified 16 outliers. Below we inspect the difference between QC metrics between the cells labelled as outliers and the remaining cells. The emerald coloured values represent the outliers and the salmon coloured values represent the samples to be kept. It is important to inspect these plots as an overview of the automatic outlier detection. Across the the diagonal are density plots, on the upper triangle are correlation values and on the lower triangle are classic pairs plots. The right column shows boxplots of the QC metrics.
+
+```{r, message=FALSE}
+# plot summary statistics of outlier detection
+plot_QC_pairs(sce)
+```
+
+The two most useful metrics are genes detected and total counts. We see that both these values are visibly lower in the outlier marked samples. As we are happy with these filtering results we can later remove these samples with `remove_outliers()`. Before we remove the outliers we will attach our sample annotations to the `colData()`.
+
+```{r, message=FALSE, warning=FALSE}
+# add sample annotation to colData(sce)
+# colData(sce) requires DataFrame objects but dplyr and tibble operations only
+# work on data.frame objects, some conversion is required
+colData(sce) <- colData(sce) %>%
+    data.frame %>%
+    rownames_to_column("cell_id") %>%
+    DataFrame
+
+colData(sce) <- inner_join(
+    colData(sce) %>% data.frame, 
+    sample_anno %>% data.frame
+) %>% DataFrame
+
+# ensure rownames of colData is the same as colnames of sce
+rownames(colData(sce)) <- colData(sce)$cell_id
+row_ord <- match(colnames(sce), rownames(colData(sce)))
+colData(sce) <- colData(sce)[row_ord, ]
+
+# remove outlier samples
+sce <- remove_outliers(sce)
+dim(sce)
+```
+
+At this point we have just under 20,000 genes and 358 cells.
+
+## Gene filtering
+
+Up to this point our genes have been encoded in EMSEMBL IDs, gene symbols are usually more informative for researchers and so we convert the rownames of our counts matrix into gene symbols. We then use `calculateQCMetrics()` to compute scater specific QC metrics.
+
+```{r}
+# convert rownames from ENSEMBL IDs to gene symbols
+sce <- convert_geneid(sce)
+
+# calculate scater QC metrics
+sce <- calculateQCMetrics(
+    sce,
+    feature_controls = list(ERCC = str_detect(rownames(sce), "^ERCC"))
+)
+```
+
+It's often informative to check the most highly expressed genes, this can be easily compared with reference datasets and provide additonal diagnostic insight. Below we see high expression of genes related to red blood cells.
+
+```{r}
+# plot 20 highest expression genes
+plotQC(sce, type = "highest-expression", n = 20)
+```
+
+We filter by the number of samples a gene can be detected in and the average counts of the gene within samples where it is expressed. Taking the average only within expressed samples is important as not to remove imformative genes that are well expressed only in a small population. Here we have set the thresholds
+
+* Greater than 1 average count within expressed samples
+* Greater than 2 samples expressed in
+
+Read depth in this dataset is not ideal so we try to set less stringent filters. These filter values should be reconsidered on an experiment by experiment basis.
+
+```{r}
+# take average of non-zero counts
+avg_within_expressed <- apply(counts(sce), 1, function(x) mean(x[x > 0]))
+# take the number of samples gene is expressed in
+expressed_samples <- rowSums(counts(sce) > 0)
+
+# filter out lowly expressed genes
+keep <- (avg_within_expressed > 1) & (expressed_samples > 2)
+sce <- sce[keep, ]
+dim(sce)
+```
+
+# Data normalisation
+
+Data normalisation is necessary to make meaningful statistical comparisons. A number of technical factors introduce uninteresting variation into the data, one of the primary factors being sequencing depth.
+
+## Computing size factors
+
+We use a scaling approach to normalise our libraries, size factors are calculated for quantile normalisation, this is more robust than simple library size normalisation. Since spike-in molecules have different behaviour to endogenous genes, they have a separate set of size factors which are not for general use.
+
+```{r}
+# compute size factors separately for endegenous features and spike-ins
+sce <- computeSumFactors(sce)
+sce <- computeSpikeFactors(sce, general.use = FALSE)
+
+# assign normalised expression to exprs(sce)
+sce <- normalize(sce)
+dim(exprs(sce))
+```
+
+# Analysis of highly variable genes
+
+In an exploratory analysis we are usually interested in highly variable genes within the whole dataset. These are the genes that vary greatly between cells, some of these will be genes that are naturally highly variable, but some of these genes will be variable because they are differentially expressed between cell types.
+
+## Detect highly variable genes
+
+We detect highly variable genes using the `trendVar()` and `decomposeVar()` functions from `scran`. This estimates variances for each gene then decomposes that variance into technical and biological components. The biological component is the one of primary interest.
+
+```{r}
+# estimate variance then decompose into technical and biological components
+fit <- trendVar(sce, parametric = TRUE)
+decomp <- decomposeVar(sce, fit) %>%
+    rownames_to_column("GeneID") %>%
+    arrange(desc(bio))
+```
+
+Our table of decomposed variances contains an FDR for the test that the biological variance is 0. We choose the highly variable genes as those that are statistically significant at the 0.05 level and have biological variance greater than or equal to 0.5. We plot the mean log expression against the variance, with blue points indicating those chosen as highly variable and a red trend line representing the technical variation. The red points are the ERCC spike-ins.
+
+```{r}
+# plot all genes in black
+plot(
+    decomp$mean,
+    decomp$total,
+    xlab = "Mean log-expression",
+    ylab = "Variance",
+    pch = 20,
+    cex = 0.4
+)
+o <- order(decomp$mean)
+hvg <- which(decomp$FDR <= 0.05 & decomp$bio >= 0.5)
+# plot highly variable genes in blue
+points(decomp$mean[hvg], decomp$total[hvg], col = "blue", pch = 20, cex = 0.8)
+# plot spike-ins in red and draw trend
+lines(decomp$mean[o], decomp$tech[o], col = "red", lwd = 1)
+points(fit$mean, fit$var, col = "red", pch = 20, cex = 0.8)
+```
+
+The expression of ERCC spike-ins should be quite consistent across the samples, this is reflected in the plot as the red points have lower variance than endogenous genes.
+
+## Heatmap of most variable genes
+
+Heatmaps are useful ways to visualise patterns in gene expression across many samples. Genes are hierarchically clustered along the rows and samples clustered across the columns. Blocks of co-expressed genes and samples with similar expression can be identified and help infer the type of cells in the experiment.
+
+```{r}
+# plot heatmap of most variable genes
+hvg_ids <- decomp$GeneID[hvg]
+gene_exp <- exprs(sce)
+gene_exp <- gene_exp[hvg_ids,]
+hc_rows <- hclust(dist(gene_exp))
+hc_cols <- hclust(dist(t(gene_exp)))
+gene_exp <- gene_exp[hc_rows$order, hc_cols$order]
+
+margin <- list(
+  l = 100,
+  r = 40,
+  b = 10,
+  t = 10,
+  pad = 0
+)
+
+plot_ly(
+    x = colnames(gene_exp),
+    y = rownames(gene_exp),
+    z = gene_exp,
+    type = "heatmap"
+) %>%
+    layout(autosize = F, margin = margin)
+```
+
+## PCA using highly variable genes
+
+The goal of principal component analysis (PCA) plots is to transform the high-dimensional data (each gene is another dimension) into a low number of dimensions (two in this example) that contain as much of the variation as possible. In PCA plots the distances between samples are preserved. For multiple cell types it is common to see a few cell types fail to separate out in the first two dimensions and require investigation of the higher PCA dimensions. We plot our PCA plots using only the highly variable genes, as they are the most likely to behave differentially across cell types.
+
+```{r}
+plotPCA(
+    sce,
+    exprs_values = "logcounts",
+    colour_by = "cell_type",
+    feature_set = hvg_ids
+)
+```
+
+# tSNE using highly variable genes
+
+t-Distributed Stochastic Neighbor Embedding (tSNE) plots are a very popular method for dimensionality reduction of single cell data. It is a dimensionality reduction technique that preserves neighbourhoods rather than distances. tSNE plots are able to fully reduce the high dimensional data into two dimensions, such that all significant differences are represented in the clustering of points. However tSNE plots are pseudo-random and also make use of a `perplexity` parameter. For reproducibility, `set.seed()` should always be run before tSNE to set the random seed. Multiple tSNE plots should also be generated over different perplexities in order to observe the stability of the clusters. Once again we run this using only our highly variable genes.
+
+```{r, fig.height = 7, fig.width = 10}
+set.seed(100)
+out5 <- plotTSNE(
+    sce,
+    exprs_values = "logcounts",
+    perplexity = 5,
+    colour_by = "cell_type",
+    feature_set = hvg_ids
+) + ggtitle("Perplexity = 5")
+
+out10 <- plotTSNE(
+    sce,
+    exprs_values = "logcounts",
+    perplexity = 10,
+    colour_by = "cell_type",
+    feature_set = hvg_ids
+) + ggtitle("Perplexity = 10")
+
+out20 <- plotTSNE(
+    sce,
+    exprs_values = "logcounts",
+    perplexity = 20,
+    colour_by = "cell_type",
+    feature_set = hvg_ids
+) + ggtitle("Perplexity = 20")
+
+out30 <- plotTSNE(
+    sce,
+    exprs_values = "logcounts",
+    perplexity = 30,
+    colour_by = "cell_type",
+    feature_set = hvg_ids
+) + ggtitle("Perplexity = 30")
+
+multiplot(out5, out10, out20, out30, cols = 2)
+```
+
+We see that tSNE does a very good job are separating out our known cell types.
+
+## Clustering using SC3
+
+Often we do not know our cell types a priori, or we find that one of our cell types has split into multiple clusters with distinct genetic signatures. We would want to investigate the differences between these clusters. We can computationally assign clusters using SC3 which uses consensus of k-means clusters. Since k-means is pseudo-random, we set the seed before running the algorithm.
+
+```{r, message=FALSE, warning=FALSE, results='hide'}
+set.seed(100)
+sce <- SC3::sc3(sce, 3:7)
+```
+
+We visualise the results of the clustering by colouring the tSNE plot based on the 5 cluster assignments made by SC3.
+
+```{r}
+set.seed(100)
+p1 <- plotTSNE(
+    sce,
+    exprs_values = "logcounts",
+    perplexity = 10,
+    colour_by = "sc3_5_clusters",
+    feature_set = hvg_ids
+) + ggtitle("tSNE Coloured by SC3 Clusters")
+
+set.seed(100)
+p2 <- plotTSNE(
+    sce,
+    exprs_values = "logcounts",
+    perplexity = 10,
+    colour_by = "cell_type",
+    feature_set = hvg_ids
+) + ggtitle("tSNE Coloured by Known Cell Type")
+
+multiplot(p1, p2, cols = 1)
+```
+
+We can see that the SC3 assigned clustering matches up with the known cell types. These asssigned cluster indices help with downstream differential expression analysis.
+
+# Differential Expression
+
+For differential expression we will use edgeR's `glmFit()` to fit a generalised linear model. The design matrix can be generated from the SC3 clusters.
+
+`edgeR` does not use `SingleCellExperiment` but requires a `DGEList`. `scran` provides a `convertTo()` function for converting the formats. Make sure to set `row.fields = TRUE` and `col.fields = TRUE` such that the `colData` and `rowData` are transferred into the `dge$samples` and `dge$genes` fields respectively.
+
+```{r}
+# convert SingleCellExperiment object to DGEList for edgeR modelling
+dge <- convertTo(sce, type = "edgeR", row.fields = TRUE, col.fields = TRUE)
+```
+
+## Comparing between clusters
+
+We proceed as if we did not know about our cell types. Our clusters have identified samples that have similar expression profiles, we should then compare these clusters for differential expression to identify marker genes that will help us identify cell identities and/or discover new cell types.
+
+```{r}
+# use no-intercept design
+design_matrix <- model.matrix(~0 + sc3_5_clusters, data = dge$samples)
+
+head(design_matrix)
+```
+
+In contrast to a standard `edgeR` pipeline we do not run `calcNormFactors` as we have already calculated size factors from `scran` which were transferred when running `convertTo`. The `scran` method for size factors is more robust to gene dropout.
+
+```{r}
+# fit glm using edgeR
+# calcNormFactors is skipped because we already have size factors from scran
+dge <- estimateDisp(dge, design = design_matrix, robust = TRUE)
+fit <- glmFit(dge, design = design_matrix)
+```
+
+For the contrast we have a few choices, most commonly we could perform pairwise comparisons between our clusters, alternatively one could compare one cluster to the average of the remaining clusters. Here for demonstration purposes we simply compare clusters 4 and 5 of the `SC3` clusters. 
+
+```{r}
+# compare cluster 5 vs cluster 4 with likelihood ratio test
+contrast <- makeContrasts("sc3_5_clusters5 - sc3_5_clusters4", 
+                          levels = design_matrix)
+lrt <- glmLRT(fit, contrast = contrast)
+# summarise test results and sort by FDR
+top <- topTags(lrt, n = Inf)
+
+# move Symbol from rownames to a column
+top$table <- top$table %>%
+    data.frame() %>%
+    rownames_to_column("Symbol")
+
+# print top 1000 most DE genes sorted by FDR
+top$table %>% 
+    dplyr::select(Symbol, logFC, logCPM, LR, PValue, FDR) %>%
+    slice(1:1000)
+```
+
+With the `SingleCellExperiment` and `DGEList` objects a variety of other analyses can be performed.
+
+```{r}
+sessionInfo()
+```
+
