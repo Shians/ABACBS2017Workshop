@@ -15,4 +15,4 @@ The packages used in this workflow can be installed by the following code
 
     source("https://bioconductor.org/biocLite.R")
     biocLite(c("scPipe", "scater", "scran", "SC3", "edgeR"), suppressUpdates=TRUE)
-    install.packages(c("dplyr", "stringr", "magrittr", "ggplot2", "tibble", "plotly"))
+    install.packages(c("dplyr", "stringr", "magrittr", "ggplot2", "tibble", "plotly", "Rtsne"))
