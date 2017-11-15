@@ -19,6 +19,7 @@ library(scater)
 library(scran)
 library(SC3)
 library(edgeR)
+library(Glimma)
 
 library(dplyr)
 library(stringr)
@@ -439,6 +440,20 @@ top$table <- top$table %>%
 top$table %>% 
     dplyr::select(Symbol, logFC, logCPM, LR, PValue, FDR) %>%
     slice(1:1000)
+```
+
+We can visualise the results of the comparison using an interactive Glimma plot.
+
+```{r}
+glMDPlot(
+    lrt,
+    counts = cpm(dge$counts, log=TRUE),
+    anno = data.frame(Symbol = rownames(lrt$table)),
+    groups = dge$samples$cell_type,
+    status = decideTests(lrt),
+    side.main = "Symbol",
+    display.columns = c("Symbol")
+)
 ```
 
 With the `SingleCellExperiment` and `DGEList` objects a variety of other analyses can be performed.
