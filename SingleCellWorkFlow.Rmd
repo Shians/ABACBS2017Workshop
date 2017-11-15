@@ -21,6 +21,7 @@ library(SC3)
 library(edgeR)
 
 library(dplyr)
+library(stringr)
 library(magrittr)
 library(ggplot2)
 library(tibble)
