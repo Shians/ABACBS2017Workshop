@@ -367,7 +367,7 @@ Often we do not know our cell types a priori, or we find that one of our cell ty
 
 ```{r, message=FALSE, warning=FALSE, results='hide'}
 set.seed(100)
-sce <- sc3(sce, 3:7)
+sce <- sc3(sce, 4:6, n_cores = 2)
 ```
 
 We visualise the results of the clustering by colouring the tSNE plot based on the 5 cluster assignments made by SC3.
