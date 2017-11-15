@@ -1,9 +1,9 @@
 ---
-title: "Single Cell Workflow"
+title: "Single Cell Workflow ABACBS 2017"
 author: "Shian Su"
 date: "`r format(Sys.Date(), '%d %B %Y')`"
 output: 
-  html_document:
+  html_notebook:
     df_print: paged
     fig_height: 7
     fig_width: 7
@@ -52,7 +52,13 @@ One quirk of dplyr is that rownames are not well preserved, therefore we make us
 
 # Introduction
 
-Single cell RNA sequencing (scRNA-seq) is a powerful technique that is used to investigate the gene expression profiles of individual cells. This is in contrast to classic bulk tissue RNA sequencing whereby the gene expression profiles represent the average profiles of a large number of cells. Single cell sequencing allows for higher resolution analysis, allowing for a range of new types of discoveries not possible with bulk sequencing. However certain characteristics make single cell sequencing data slightly more difficult to work with than bulk rna seq. There are usually large numbers of cells sequenced, which generally results in at least some degraded cells that should be excluded from analysis. In general the gene count numbers are low and in addition there are gene drop-outs whereby many genes have 0 counts. These have adverse effects on existing modelling techniques. We will use `scPipe` to visualise the quality of our experiment and remove low quality cells. We will then use `scater` and `scran` to visualise, filter and normalise gene counts. The results can then be plotted using `Rtsne` and clustered with `SC3` and differential expression analysis can be performed using `edgeR`.
+Single cell RNA sequencing (scRNA-seq) is a powerful technique that is used to investigate the gene expression profiles of individual cells. This is in contrast to classic bulk tissue RNA sequencing whereby the gene expression profiles represent the average profiles of a large number of cells.
+
+Single cell sequencing allows for higher resolution analysis, allowing for a range of new types of discoveries not possible with bulk sequencing. However certain characteristics make single cell sequencing data slightly more difficult to work with than bulk rna seq.
+
+There are usually large numbers of cells sequenced, which generally results in at least some degraded cells that should be excluded from analysis. In general the gene count numbers are low and in addition there are gene drop-outs whereby many genes have 0 counts. These have adverse effects on existing modelling techniques.
+
+We will use `scPipe` to visualise the quality of our experiment and remove low quality cells. We will then use `scater` and `scran` to visualise, filter and normalise gene counts. The results can then be plotted using `Rtsne` and clustered with `SC3` and differential expression analysis can be performed using `edgeR`.
 
 ## Read in data
 
@@ -361,7 +367,7 @@ Often we do not know our cell types a priori, or we find that one of our cell ty
 
 ```{r, message=FALSE, warning=FALSE, results='hide'}
 set.seed(100)
-sce <- SC3::sc3(sce, 3:7)
+sce <- sc3(sce, 3:7)
 ```
 
 We visualise the results of the clustering by colouring the tSNE plot based on the 5 cluster assignments made by SC3.
@@ -442,7 +448,7 @@ top$table %>%
     slice(1:1000)
 ```
 
-We can visualise the results of the comparison using an interactive Glimma plot.
+We can visualise the results of the comparison using an interactive Glimma plot. This shows MD (now MA) plot along with a 
 
 ```{r}
 glMDPlot(
@@ -456,7 +462,7 @@ glMDPlot(
 )
 ```
 
-With the `SingleCellExperiment` and `DGEList` objects a variety of other analyses can be performed.
+We conclude this workshop here, but with the `SingleCellExperiment` and `DGEList` objects constructed a variety of further analyses can be performed.
 
 # Appendix
 
