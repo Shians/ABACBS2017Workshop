@@ -3,7 +3,7 @@ title: "Single Cell Workflow ABACBS 2017"
 author: "Shian Su"
 date: "`r format(Sys.Date(), '%d %B %Y')`"
 output: 
-  html_notebook:
+  html_document:
     df_print: paged
     fig_height: 7
     fig_width: 7
@@ -464,6 +464,8 @@ glMDPlot(
     launch = FALSE
 )
 ```
+
+`r glMDRmd()`
 
 We conclude this workshop here, but with the `SingleCellExperiment` and `DGEList` objects constructed a variety of further analyses can be performed.
 
