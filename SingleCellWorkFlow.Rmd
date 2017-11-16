@@ -156,14 +156,14 @@ The two most useful metrics are genes detected and total counts. We see that bot
 # colData(sce) requires DataFrame objects but dplyr and tibble operations only
 # work on data.frame objects, some conversion is required
 colData(sce) <- colData(sce) %>%
-    data.frame %>%
+    data.frame() %>%
     rownames_to_column("cell_id") %>%
-    DataFrame
+    DataFrame()
 
 colData(sce) <- inner_join(
-    colData(sce) %>% data.frame, 
-    sample_anno %>% data.frame
-) %>% DataFrame
+    colData(sce) %>% data.frame(), 
+    sample_anno %>% data.frame()
+) %>% DataFrame()
 
 # ensure rownames of colData is the same as colnames of sce
 rownames(colData(sce)) <- colData(sce)$cell_id
