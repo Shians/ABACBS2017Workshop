@@ -305,6 +305,8 @@ plot_ly(
     layout(autosize = F, margin = margin)
 ```
 
+The heatmap here is generated using plotly, which allows for interactive actions like hover tooltips and zooming. This is popular for exploration but static heatmap packages usually produce more publication-appropriate heatmaps with greater flexibility.
+
 ## PCA using highly variable genes
 
 The goal of principal component analysis (PCA) plots is to transform the high-dimensional data (each gene is another dimension) into a low number of dimensions (two in this example) that contain as much of the variation as possible. In PCA plots the distances between samples are preserved. For multiple cell types it is common to see a few cell types fail to separate out in the first two dimensions and require investigation of the higher PCA dimensions. We plot our PCA plots using only the highly variable genes, as they are the most likely to behave differentially across cell types.
