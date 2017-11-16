@@ -29,3 +29,7 @@ This workflow is adapted from other vignettes and workflows.
 * [scater](https://bioconductor.org/packages/release/bioc/html/scater.html)
 * [A step-by-step workflow for low-level analysis of single-cell RNA-seq data](https://f1000research.com/articles/5-2122/v2)
 * [RNA-seq analysis is easy as 1-2-3 with limma, Glimma and edgeR](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4937821/)
+
+# Feedback
+
+Please help me develop this workflow by asking questions about any confusing statements or code. [Leave an issue](https://github.com/Shians/ABACBS2017Workshop/issues/new) on this Github repository or [email me](su.s+abacbs2017@wehi.edu.au).
