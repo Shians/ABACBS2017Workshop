@@ -16,3 +16,12 @@ The packages used in this workflow can be installed by the following code
     source("https://bioconductor.org/biocLite.R")
     biocLite(c("scPipe", "scater", "scran", "SC3", "edgeR", "Glimma"), suppressUpdates=TRUE)
     install.packages(c("dplyr", "stringr", "magrittr", "ggplot2", "tibble", "plotly", "Rtsne"))
+
+# References
+
+This workflow is adapted from other vignettes and workflows.
+
+* (scPipe)[https://bioconductor.org/packages/release/bioc/html/scPipe.html]
+* (scater)[https://bioconductor.org/packages/release/bioc/html/scater.html]
+* (A step-by-step workflow for low-level analysis of single-cell RNA-seq data)[https://f1000research.com/articles/5-2122/v1]
+* (RNA-seq analysis is easy as 1-2-3 with limma, Glimma and edgeR)[https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4937821/]
