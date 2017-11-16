@@ -1,5 +1,11 @@
 # ABACBS2017Workshop
 
+# Usage
+
+The main materials are included in the `SingleCellWorkFlow.Rmd` file. Set the working directory in RStudio to the folder containing this file, open the file and click `Knit` on the toolbar of the editor. This generates the full report with the relevant plots.
+
+# Download
+
 Download this workflow either using git to create the "ABACBS2017Workshop" folder:
 
     git clone https://github.com/Shians/ABACBS2017Workshop.git
