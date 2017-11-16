@@ -23,5 +23,5 @@ This workflow is adapted from other vignettes and workflows.
 
 * [scPipe](https://bioconductor.org/packages/release/bioc/html/scPipe.html)
 * [scater](https://bioconductor.org/packages/release/bioc/html/scater.html)
-* [A step-by-step workflow for low-level analysis of single-cell RNA-seq data](https://f1000research.com/articles/5-2122/v1)
+* [A step-by-step workflow for low-level analysis of single-cell RNA-seq data](https://f1000research.com/articles/5-2122/v2)
 * [RNA-seq analysis is easy as 1-2-3 with limma, Glimma and edgeR](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4937821/)
