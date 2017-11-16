@@ -17,6 +17,10 @@ The packages used in this workflow can be installed by the following code
     biocLite(c("scPipe", "scater", "scran", "SC3", "edgeR", "Glimma"), suppressUpdates=TRUE)
     install.packages(c("dplyr", "stringr", "magrittr", "ggplot2", "tibble", "plotly", "Rtsne"))
 
+for those on the BioC Amazon instance, only the `Rtsne` package needs to be added
+
+    install.packages("Rtsne")
+
 # References
 
 This workflow is adapted from other vignettes and workflows.
