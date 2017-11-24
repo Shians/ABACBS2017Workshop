@@ -142,7 +142,7 @@ sce <- detect_outlier(
 table(QC_metrics(sce)$outliers)
 ```
 
-We see that the automatic algorithm has identified 16 outliers. Below we inspect the difference between QC metrics between the cells labelled as outliers and the remaining cells. The emerald coloured values represent the outliers and the salmon coloured values represent the samples to be kept. It is important to inspect these plots as an overview of the automatic outlier detection. Across the the diagonal are density plots, on the upper triangle are correlation values and on the lower triangle are classic pairs plots. The right column shows box-plots of the QC metrics.
+We see that the automatic algorithm has identified 16 outliers. Below we inspect the difference between QC metrics between the cells labelled as outliers and the remaining cells. The turquoise coloured values represent the outliers and the salmon coloured values represent the samples to be kept. It is important to inspect these plots as an overview of the automatic outlier detection. Across the the diagonal are density plots, on the upper triangle are correlation values and on the lower triangle are classic pairs plots. The right column shows box-plots of the QC metrics.
 
 ```{r, message=FALSE}
 # plot summary statistics of outlier detection
@@ -325,6 +325,9 @@ plotPCA(
 t-Distributed Stochastic Neighbour Embedding (tSNE) plots are a very popular method for dimensionality reduction of single cell data. It is a dimensionality reduction technique that preserves neighbourhoods rather than distances. tSNE plots are able to fully reduce the high dimensional data into two dimensions, such that all significant differences are represented in the clustering of points. However tSNE plots are pseudo-random and also make use of a `perplexity` parameter. For reproducibility, `set.seed()` should always be run before tSNE to set the random seed. Multiple tSNE plots should also be generated over different perplexities in order to observe the stability of the clusters. Once again we run this using only our highly variable genes.
 
 ```{r, fig.height = 7, fig.width = 10}
+# plot multiple tSNE plots
+# plotTSNE returns plotly objects which can be put into
+# a panel using multiplot
 set.seed(100)
 out5 <- plotTSNE(
     sce,
