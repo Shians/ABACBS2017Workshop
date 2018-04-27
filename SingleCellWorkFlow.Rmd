@@ -372,6 +372,7 @@ Often we do not know our cell types a priori, or we find that one of our cell ty
 
 ```{r, message=FALSE, warning=FALSE, results='hide'}
 set.seed(100)
+rowData(sce)$feature_symbol <- rownames(sce)
 sce <- sc3(sce, 4:6, n_cores = 2)
 ```
 
